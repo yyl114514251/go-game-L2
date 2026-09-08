@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>棋道 · 围棋 AI</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <div class="logo-area">
+        <span class="logo-icon">⚫</span>
+        <div>
+          <h1>棋道 <span class="badge">MCTS+RAVE L2</span></h1>
+          <p class="subtitle">蒙特卡洛树搜索围棋引擎 · Web Worker 多线程计算</p>
+        </div>
+      </div>
+    </header>
+
+    <main class="main">
+      <!-- 棋盘区 -->
+      <section class="board-section">
+        <div class="board-wrapper">
+          <canvas id="boardCanvas"></canvas>
+          <div class="thinking-overlay" id="thinkingOverlay" style="display:none;">
+            <div class="thinking-content">
+              <div class="spinner"></div>
+              <p>AI 思考中...</p>
+              <p class="thinking-stat" id="thinkingStat">模拟 0 次</p>
+            </div>
+          </div>
+        </div>
+        <div class="board-coords" id="boardCoords"></div>
+      </section>
+
+      <!-- 控制面板 -->
+      <section class="control-panel">
+        <div class="panel-card">
+          <h2 class="panel-title">对局信息</h2>
+          <div class="game-info">
+            <div class="info-row">
+              <span class="info-label">当前回合</span>
+              <span class="info-value" id="currentPlayer">⚫ 黑方</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">手数</span>
+              <span class="info-value" id="moveCount">0</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">黑方提子</span>
+              <span class="info-value" id="blackCaptures">0</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">白方提子</span>
+              <span class="info-value" id="whiteCaptures">0</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">贴目</span>
+              <span class="info-value">7.5 目</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-card">
+          <h2 class="panel-title">游戏设置</h2>
+          <div class="settings">
+            <div class="setting-row">
+              <label>棋盘大小</label>
+              <select id="boardSize">
+                <option value="9">9 × 9（AI最强）</option>
+                <option value="13">13 × 13</option>
+                <option value="19" selected>19 × 19（标准）</option>
+              </select>
+            </div>
+            <div class="setting-row">
+              <label>AI 强度</label>
+              <select id="aiLevel">
+                <option value="500">入门（500次模拟）</option>
+                <option value="2000" selected>业余（2000次模拟）</option>
+                <option value="8000">进阶（8000次模拟）</option>
+                <option value="20000">高手（20000次模拟）</option>
+                <option value="50000">大师（50000次模拟）</option>
+              </select>
+            </div>
+            <div class="setting-row">
+              <label>玩家执子</label>
+              <select id="playerColor">
+                <option value="black" selected>⚫ 黑棋（先手）</option>
+                <option value="white">⚪ 白棋（后手）</option>
+              </select>
+            </div>
+            <div class="setting-row">
+              <label>显示坐标</label>
+              <input type="checkbox" id="showCoords" checked />
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-card">
+          <h2 class="panel-title">操作</h2>
+          <div class="action-buttons">
+            <button class="btn btn-primary" id="newGameBtn">🔄 新对局</button>
+            <button class="btn btn-secondary" id="undoBtn">↩ 悔棋</button>
+            <button class="btn btn-secondary" id="passBtn">⏭ Pass</button>
+            <button class="btn btn-secondary" id="resignBtn">🏳 认输</button>
+          </div>
+        </div>
+
+        <div class="panel-card">
+          <h2 class="panel-title">AI 引擎信息</h2>
+          <div class="engine-info">
+            <p><strong>算法：</strong>MCTS + RAVE + UCT + 静态评估</p>
+            <p><strong>模拟策略：</strong>启发式落子（提子/长气/围空优先）+ 提前评估终止</p>
+            <p><strong>计算方式：</strong>Web Worker 独立线程 + 搜索树复用</p>
+            <p><strong>胜负计算：</strong>中国数子法（贴7.5目）</p>
+            <p><strong>L2 升级：</strong>RAVE加速收敛 · 静态评估提速2-3倍 · 树复用继承搜索成果 · 启发式提子/长气</p>
+            <p class="engine-note">💡 9×9 棋盘 AI 棋力最强（业余5-8级），19×19 建议提高模拟次数或用 13×13。AI 思考时不阻塞界面，连续对局时搜索树会自动复用。</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- 结果弹窗 -->
+    <div class="modal-overlay" id="resultModal" style="display:none;">
+      <div class="modal">
+        <div class="modal-head">
+          <h2 id="resultTitle">对局结束</h2>
+        </div>
+        <div class="modal-body">
+          <div id="resultContent" class="result-content"></div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-primary" id="resultNewGame">再来一局</button>
+          <button class="btn btn-secondary" id="resultClose">关闭</button>
+        </div>
+      </div>
+    </div>
+
+    <footer class="footer">
+      <p>棋道 · MCTS 围棋 AI | 纯前端实现，无外部依赖 | 仅供学习娱乐</p>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
